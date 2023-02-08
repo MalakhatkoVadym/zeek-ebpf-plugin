@@ -1,1 +1,1 @@
-@load ./init.bro
+@load ./init.zeek

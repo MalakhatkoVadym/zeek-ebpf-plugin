@@ -21,7 +21,7 @@ extern "C" {
 namespace iosource {
 namespace pktsrc {
 
-class AF_XDPSource : public iosource::PktSrc {
+class AF_XDPSource : public zeek::iosource::PktSrc {
 public:
 	AF_XDPSource(const std::string& path, bool is_live);
 
@@ -32,7 +32,7 @@ public:
 protected:
 	virtual void Open();
 	virtual void Close();
-	virtual bool ExtractNextPacket(Packet* pkt);
+	virtual bool ExtractNextPacket(zeek::Packet* pkt);
 	virtual void DoneWithPacket();
 	virtual bool PrecompileFilter(int index, const std::string& filter);
 	virtual bool SetFilter(int index);

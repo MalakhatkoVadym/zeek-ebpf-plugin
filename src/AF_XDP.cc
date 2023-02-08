@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "bro-config.h"
+#include "zeek-config.h"
 #include "AF_XDP.h"
 
 #include <net/if.h>
@@ -167,7 +167,7 @@ void AF_XDPSource::Close() {
 	Closed();
 }
 
-bool AF_XDPSource::ExtractNextPacket(Packet* pkt) {
+bool AF_XDPSource::ExtractNextPacket(zeek::Packet* pkt) {
 	if (!fd)
 	    return false;
 
@@ -213,6 +213,6 @@ void AF_XDPSource::Statistics(Stats* s) {
 	*s = stats;
 }
 
-iosource::PktSrc* AF_XDPSource::InstantiateAF_XDP(const std::string& path, bool is_live) {
+zeek::iosource::PktSrc* AF_XDPSource::InstantiateAF_XDP(const std::string& path, bool is_live) {
 	return new AF_XDPSource(path, is_live);
 }

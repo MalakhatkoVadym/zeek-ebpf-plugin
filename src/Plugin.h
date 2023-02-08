@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef BRO_PLUGIN_ITIMMER_AF_XDP
-#define BRO_PLUGIN_ITIMMER_AF_XDP
+#ifndef ZEEK_PLUGIN_ITIMMER_AF_XDP
+#define ZEEK_PLUGIN_ITIMMER_AF_XDP
 
 #include <plugin/Plugin.h>
 
 namespace plugin {
 namespace irtimmer_AF_XDP {
 
-class Plugin : public ::plugin::Plugin {
+class Plugin : public zeek::plugin::Plugin {
 protected:
 	// Overridden from plugin::Plugin.
-	plugin::Configuration Configure() override;
+	zeek::plugin::Configuration Configure() override;
 };
 
 extern Plugin plugin;
