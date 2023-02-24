@@ -1,7 +1,7 @@
 [package]
-description = This plugin provides native AF_XDP support for Zeek.
-tags = zeek plugin, packet source, af_xdp
-plugin_dir = build/itimmer_af_xdp.tgz
+description = This plugin provides native ebpf Socket Filter support for Zeek.
+tags = zeek plugin, packet source, sf, socket filter
+plugin_dir = build/MalakhatkoVadym_sf.tgz
 build_command = ./configure --zeek-dist=%(zeek_dist)s && make
 test_command = cd tests && btest -d
 depends =

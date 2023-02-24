@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef IOSOURCE_PKTSRC_AF_XDP_SOURCE_H
-#define IOSOURCE_PKTSRC_AF_XDP_SOURCE_H
+#ifndef IOSOURCE_PKTSRC_SF_SOURCE_H
+#define IOSOURCE_PKTSRC_SF_SOURCE_H
 
 #define PCAP_DONT_INCLUDE_PCAP_BPF_H
 
@@ -14,23 +14,25 @@ extern "C"
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
+#include <bpf/bpf.h>
 }
 
 #include "iosource/PktSrc.h"
+#include "SF_Ring.h"
 
 namespace iosource
 {
 	namespace pktsrc
 	{
 
-		class AF_XDPSource : public zeek::iosource::PktSrc
+		class SFSource : public zeek::iosource::PktSrc
 		{
 		public:
-			AF_XDPSource(const std::string &path, bool is_live);
+			SFSource(const std::string &path, bool is_live);
 
-			virtual ~AF_XDPSource();
+			virtual ~SFSource();
 
-			static PktSrc *InstantiateAF_XDP(const std::string &path, bool is_live);
+			static PktSrc *InstantiateSF(const std::string &path, bool is_live);
 
 		protected:
 			virtual void Open();
@@ -45,9 +47,12 @@ namespace iosource
 			Properties props;
 			Stats stats;
 
+			SF_Ring *sf_ring;
 			unsigned short ifindex;
-
+			char bpf_log_buf[BPF_LOG_BUF_SIZE];
 			int fd;
+			struct pcap_pkthdr current_hdr;
+
 		};
 
 	}

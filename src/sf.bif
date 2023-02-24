@@ -1,0 +1,5 @@
+module SocketFilter;
+
+const buffer_size: count;
+const block_size: count;
+const block_timeout: interval;

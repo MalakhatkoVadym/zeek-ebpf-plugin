@@ -19,10 +19,10 @@ Compile the plugin.
 make
 ``
 
-After installation of the plugin it can be used by using `af_xdp` as prefix for the interface name.
+After installation of the plugin it can be used by using `sf` as prefix for the interface name.
 
 ```
-zeek -i af_xdp::eth0
+zeek -i sf::eth0
 ```
 
 ## Copyright

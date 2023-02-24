@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "string": "cpp",
-        "cerrno": "cpp"
+        "cerrno": "cpp",
+        "system_error": "cpp",
+        "bpf.h": "c",
+        "initializer_list": "cpp",
+        "string_view": "cpp",
+        "stdlib.h": "c"
     }
 }

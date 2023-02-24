@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef ZEEK_PLUGIN_ITIMMER_AF_XDP
-#define ZEEK_PLUGIN_ITIMMER_AF_XDP
+#ifndef ZEEK_PLUGIN_ITIMMER_SF
+#define ZEEK_PLUGIN_ITIMMER_SF
 
 #include <plugin/Plugin.h>
 
 namespace plugin {
-namespace irtimmer_AF_XDP {
+namespace SF {
 
 class Plugin : public zeek::plugin::Plugin {
 protected:
