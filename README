@@ -25,6 +25,16 @@ After installation of the plugin it can be used by using `sf` as prefix for the 
 zeek -i sf::eth0
 ```
 
+## Building socket filter kernel app:
+
+```
+clang -target bpf -O2 -c src/filter.c -o filter.o
+```
+
+filter.o should be in the same directory from where zeek is started.
+
+KernelHeaders
+
 ## Copyright
 
 Copyright (c) 2018 by Iwan Timmer  

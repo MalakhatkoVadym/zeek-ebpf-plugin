@@ -6,6 +6,9 @@
         "bpf.h": "c",
         "initializer_list": "cpp",
         "string_view": "cpp",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "*.tcc": "cpp",
+        "bitset": "cpp",
+        "array": "c"
     }
 }

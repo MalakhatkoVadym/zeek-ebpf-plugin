@@ -8,10 +8,10 @@
 #include "SocketFilter.h"
 #include <bpf/bpf.h>
 
-#include "sock_example.h"
 #include "bpf_insn.h"
 #include <net/if.h>
 #include <sf.bif.h>
+#include <string>
 
 extern "C" {
 	#include <libelf.h>
@@ -757,11 +757,74 @@ SFSource::~SFSource()
 SFSource::SFSource(const std::string &path, bool is_live)
 {
 	if (!is_live)
-		Error("AF_XDP source does not support offline input");
+		Error("Socket Filter source does not support offline input");
 
 	props.path = path;
 	props.is_live = is_live;
 }
+
+inline bool SFSource::BindInterface()
+	{
+	struct ifreq ifr;
+	struct sockaddr_ll saddr_ll;
+	int ret;
+
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", props.path.c_str());
+
+	ret = ioctl(fd, SIOCGIFINDEX, &ifr);
+	if ( ret < 0 )
+		return false;
+
+	memset(&saddr_ll, 0, sizeof(saddr_ll));
+	saddr_ll.sll_family = AF_PACKET;
+	saddr_ll.sll_protocol = htons(ETH_P_ALL);
+	saddr_ll.sll_ifindex = ifr.ifr_ifindex;
+
+	ret = bind(fd, (struct sockaddr *) &saddr_ll, sizeof(saddr_ll));
+	return (ret >= 0);
+	}
+
+inline bool SFSource::EnablePromiscMode()
+	{
+	struct ifreq ifr;
+	struct packet_mreq mreq;
+	int ret;
+
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", props.path.c_str());
+
+	ret = ioctl(fd, SIOCGIFINDEX, &ifr);
+	if ( ret < 0 )
+		return false;
+
+	memset(&mreq, 0, sizeof(mreq));
+	mreq.mr_ifindex = ifr.ifr_ifindex;
+	mreq.mr_type = PACKET_MR_PROMISC;
+
+	ret = setsockopt(fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+	return (ret >= 0);
+	}
+
+inline bool SFSource::ConfigureFanoutGroup()
+	{
+		
+		uint32_t fanout_arg, fanout_id;
+		int ret;
+
+		fanout_id = 0;// zeek::BifConst::AF_Packet::fanout_id;
+		fanout_arg = ((fanout_id & 0xffff) | (PACKET_FANOUT_HASH << 16));
+
+		ret = setsockopt(fd, SOL_PACKET, PACKET_FANOUT,
+			&fanout_arg, sizeof(fanout_arg));
+
+		if ( ret < 0 )
+			return false;
+
+		return true;
+	
+	}
+
 
 void SFSource::Open()
 {
@@ -773,14 +836,52 @@ void SFSource::Open()
 	char filename[256];
 	snprintf(filename, sizeof(filename), "filter.o");
 	if (do_load_bpf_file(filename, NULL)) {
-		printf("Error: %s", bpf_log_buf);
+		Error("Error");
+		Error(bpf_log_buf);
 	}
-	fd = open_raw_sock(props.path.c_str());
+	fd = socket(AF_PACKET, SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC, htons(ETH_P_ALL));
+	// struct sockaddr_ll sll;
+	// memset(&sll, 0, sizeof(sll));
+	// sll.sll_family = AF_PACKET;
+	// sll.sll_ifindex = if_nametoindex(props.path.c_str());
+	// sll.sll_protocol = htons(ETH_P_ALL);
+	// if (bind(fd, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
+	// 	printf("bind to %s: %s\n", props.path.c_str(), strerror(errno));
+	// 	close(fd);
+	// 	return;
+	// }
+
+	if ( fd < 0 )
+		{
+		Error(errno ? strerror(errno) : "unable to create socket");
+		return;
+		}
 	
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_BPF, prog_fd,
 			  sizeof(prog_fd[0])) < 0){
-					printf("ssetsockopt: %s\n", strerror(errno));
-				   }
+				Error(errno ? strerror(errno) : "setsockopt error");
+	}
+
+
+	if ( ! BindInterface() )
+		{
+		Error(errno ? strerror(errno) : "unable to bind to interface");
+		close(fd);
+		return;
+		}
+
+	if ( ! EnablePromiscMode() )
+		{
+		Error(errno ? strerror(errno) : "unable enter promiscious mode");
+		close(fd);
+		return;
+		}
+	if ( ! ConfigureFanoutGroup() )
+		{
+		Error(errno ? strerror(errno) : "failed to join fanout group");
+		close(fd);
+		return;
+		}
 
 	try {
 		sf_ring = new SF_Ring(fd, buffer_size, block_size, block_timeout_msec);
@@ -803,45 +904,39 @@ void SFSource::Close()
 		fd = 0;
 	}
 
-	// bpf.Unload(ifindex);
 
 	Closed();
 }
 
 bool SFSource::ExtractNextPacket(zeek::Packet *pkt)
 {
-	// if (!fd)
-	// 	return false;
+	if (!fd)
+		return false;
 
-	// u_char buffer[16383];
 	// struct iphdr *ip_header;
-
-	// size_t bytes = recv(fd, buffer, sizeof(buffer), 0);
+	// size_t bytes;
+	// while((bytes = recv(fd, ring_buffer[index], 16383, 0)) < 0) { 
 	// size_t undefined = -1;
 	// if (bytes == undefined)
-	// {
+	// {	
 	// 	return false;
-	// 	// printf("Received %ld bytes\n", bytes);
 	// }
-	// // write(1, buffer, bytes);
-
-	// // current = rx.Next();
-	// // if (!current)
-	// //	return false;
 
 	// struct timeval ts;
 	// gettimeofday(&ts, NULL);
 
-	// ip_header = (struct iphdr*)(buffer + sizeof(struct ethhdr));
+	// ip_header = (struct iphdr*)(ring_buffer[index] + sizeof(struct ethhdr));
 	// int len = ntohs(ip_header->tot_len);
 
+	// pkt->Init(props.link_type, &ts, bytes, len, ring_buffer[index]);
 
-	// pkt->Init(props.link_type, &ts, bytes, len, buffer);
-
+	// index++;
 	// stats.received++;
 	// stats.bytes_received += bytes;
 
 	// return true;
+	// }
+	
 	if ( ! fd )
 		return false;
 
@@ -870,36 +965,36 @@ bool SFSource::ExtractNextPacket(zeek::Packet *pkt)
 		if ( packet->tp_status & TP_STATUS_VLAN_VALID )
 			pkt->vlan = packet->hv1.tp_vlan_tci;
 
-// #if ZEEK_VERSION_NUMBER >= 50100
-// 		switch ( checksum_mode )
-// 			{
-// 			case BifEnum::AF_Packet::CHECKSUM_OFF:
-// 				{
-// 				// If set to off, just accept whatever checksum in the packet is correct and
-// 				// skip checking it here and in Zeek.
-// 				pkt->l4_checksummed = true;
-// 				break;
-// 				}
-// 			case BifEnum::AF_Packet::CHECKSUM_KERNEL:
-// 				{
-// 				// If set to kernel, check whether the kernel thinks the checksum is valid. If it
-// 				// does, tell Zeek to skip checking by itself.
-// 				if ( ( (packet->tp_status & TP_STATUS_CSUM_VALID) != 0 ) ||
-// 				     ( (packet->tp_status & TP_STATUS_CSUMNOTREADY) != 0 ) )
-// 					pkt->l4_checksummed = true;
-// 				else
-// 					pkt->l4_checksummed = false;
-// 				break;
-// 				}
-// 			case BifEnum::AF_Packet::CHECKSUM_ON:
-// 			default:
-// 				{
-// 				// Let Zeek handle it.
-// 				pkt->l4_checksummed = false;
-// 				break;
-// 				}
-// 			}
-// #endif
+#if ZEEK_VERSION_NUMBER >= 50100
+		switch ( checksum_mode )
+			{
+			case BifEnum::SocketFilter::CHECKSUM_OFF:
+				{
+				// If set to off, just accept whatever checksum in the packet is correct and
+				// skip checking it here and in Zeek.
+				pkt->l4_checksummed = true;
+				break;
+				}
+			case BifEnum::SocketFilter::CHECKSUM_KERNEL:
+				{
+				// If set to kernel, check whether the kernel thinks the checksum is valid. If it
+				// does, tell Zeek to skip checking by itself.
+				if ( ( (packet->tp_status & TP_STATUS_CSUM_VALID) != 0 ) ||
+				     ( (packet->tp_status & TP_STATUS_CSUMNOTREADY) != 0 ) )
+					pkt->l4_checksummed = true;
+				else
+					pkt->l4_checksummed = false;
+				break;
+				}
+			case BifEnum::SocketFilter::CHECKSUM_ON:
+			default:
+				{
+				// Let Zeek handle it.
+				pkt->l4_checksummed = false;
+				break;
+				}
+			}
+#endif
 
 		if ( current_hdr.len == 0 || current_hdr.caplen == 0 )
 			{
@@ -946,7 +1041,7 @@ void SFSource::Statistics(Stats *s)
 	stats.link = stats.received + stats.dropped;
 
 	s = stats;*/	
-	memcpy(s, &stats, sizeof(Stats));
+	// memcpy(s, &stats, sizeof(Stats));
 }
 
 zeek::iosource::PktSrc *SFSource::InstantiateSF(const std::string &path, bool is_live)

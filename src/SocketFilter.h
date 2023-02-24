@@ -41,17 +41,26 @@ namespace iosource
 			virtual void DoneWithPacket();
 			virtual bool PrecompileFilter(int index, const std::string &filter);
 			virtual bool SetFilter(int index);
+			
 			virtual void Statistics(Stats *stats);
 
 		private:
+
+			bool BindInterface();
+			bool EnablePromiscMode();
+			bool ConfigureFanoutGroup();
 			Properties props;
 			Stats stats;
+
+			// u_char index;
+			// u_char ring_buffer[16383][16383];
 
 			SF_Ring *sf_ring;
 			unsigned short ifindex;
 			char bpf_log_buf[BPF_LOG_BUF_SIZE];
 			int fd;
 			struct pcap_pkthdr current_hdr;
+			int checksum_mode;
 
 		};
 
