@@ -11,8 +11,8 @@
 SEC("socket1")
 int bpf_prog1(struct __sk_buff *skb)
 {
-	//return skb->len;
-	return SK_PASS;
+	return skb->len;
+	//return SK_PASS;
 	//return SK_DROP;
 	
 	void *data = (void *)(long)skb->data;

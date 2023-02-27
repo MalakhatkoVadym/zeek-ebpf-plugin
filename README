@@ -33,10 +33,8 @@ clang -target bpf -O2 -c src/filter.c -o filter.o
 
 filter.o should be in the same directory from where zeek is started.
 
-KernelHeaders
+## Troubleshouting:
 
-## Copyright
-
-Copyright (c) 2018 by Iwan Timmer  
-Distributed under the BSD-3 Clause license, except for the eBPF kernel parts which are licensed under the GPL-2.0.  
-For more information about the licenses, see COPYING and COPYING.GPL.  
+Install libbpf to compile plugin properly.
+Install gcc-multilib in case of error:
+`'asm/types.h' file not found`

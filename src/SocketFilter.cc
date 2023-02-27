@@ -13,6 +13,10 @@
 #include <sf.bif.h>
 #include <string>
 
+#ifndef TP_STATUS_CSUM_VALID
+#define TP_STATUS_CSUM_VALID (1 << 7)
+#endif
+
 extern "C" {
 	#include <libelf.h>
 	#include <gelf.h>
@@ -806,23 +810,52 @@ inline bool SFSource::EnablePromiscMode()
 	return (ret >= 0);
 	}
 
-inline bool SFSource::ConfigureFanoutGroup()
+inline uint32_t SFSource::GetFanoutMode(bool defrag)
 	{
-		
+	uint32_t fanout_mode;
+
+	switch ( zeek::BifConst::SocketFilter::fanout_mode->AsEnum() ) {
+		case BifEnum::SocketFilter::FANOUT_CPU: fanout_mode = PACKET_FANOUT_CPU;
+			break;
+	#ifdef PACKET_FANOUT_QM
+		case BifEnum::SocketFilter::FANOUT_QM: fanout_mode = PACKET_FANOUT_QM;
+			break;
+	#endif
+	#ifdef PACKET_FANOUT_CBPF
+		case BifEnum::SocketFilter::FANOUT_CBPF: fanout_mode = PACKET_FANOUT_CBPF;
+			break;
+	#endif
+	#ifdef PACKET_FANOUT_EBPF
+		case BifEnum::SocketFilter::FANOUT_EBPF: fanout_mode = PACKET_FANOUT_EBPF;
+			break;
+	#endif
+		default: fanout_mode = PACKET_FANOUT_HASH;
+			break;
+	}
+
+	if ( defrag )
+		fanout_mode |= PACKET_FANOUT_FLAG_DEFRAG;
+
+	return fanout_mode;
+	}
+
+inline bool SFSource::ConfigureFanoutGroup(bool enabled, bool defrag)
+	{
+	if ( enabled )
+		{
 		uint32_t fanout_arg, fanout_id;
 		int ret;
 
-		fanout_id = 0;// zeek::BifConst::AF_Packet::fanout_id;
-		fanout_arg = ((fanout_id & 0xffff) | (PACKET_FANOUT_HASH << 16));
+		fanout_id = zeek::BifConst::SocketFilter::fanout_id;
+		fanout_arg = ((fanout_id & 0xffff) | (GetFanoutMode(defrag) << 16));
 
 		ret = setsockopt(fd, SOL_PACKET, PACKET_FANOUT,
 			&fanout_arg, sizeof(fanout_arg));
 
 		if ( ret < 0 )
 			return false;
-
-		return true;
-	
+		}
+	return true;
 	}
 
 
@@ -832,7 +865,12 @@ void SFSource::Open()
 	uint64_t buffer_size = zeek::BifConst::SocketFilter::buffer_size;
 	uint64_t block_size = zeek::BifConst::SocketFilter::block_size;
 	int block_timeout_msec = static_cast<int>(zeek::BifConst::SocketFilter::block_timeout * 1000.0);
-
+	int link_type = zeek::BifConst::SocketFilter::link_type;
+	bool enable_fanout = zeek::BifConst::SocketFilter::enable_fanout;
+	bool enable_defrag = zeek::BifConst::SocketFilter::enable_defrag;
+	bool enable_hw_timestamping = zeek::BifConst::SocketFilter::enable_hw_timestamping;
+	// bool enable_fanout = zeek::BifConst::SocketFilter::enable_fanout;
+	// bool enable_defrag = zeek::BifConst::SocketFilter::enable_defrag;
 	char filename[256];
 	snprintf(filename, sizeof(filename), "filter.o");
 	if (do_load_bpf_file(filename, NULL)) {
@@ -862,6 +900,13 @@ void SFSource::Open()
 				Error(errno ? strerror(errno) : "setsockopt error");
 	}
 
+	try {
+		sf_ring = new SF_Ring(fd, buffer_size, block_size, block_timeout_msec);
+	} catch (SF_RingException& e) {
+		Error(errno ? strerror(errno) : "unable to create RX-ring");
+		close(fd);
+		return;
+	}
 
 	if ( ! BindInterface() )
 		{
@@ -876,25 +921,60 @@ void SFSource::Open()
 		close(fd);
 		return;
 		}
-	if ( ! ConfigureFanoutGroup() )
+	if ( ! ConfigureFanoutGroup(enable_fanout, enable_defrag) )
 		{
 		Error(errno ? strerror(errno) : "failed to join fanout group");
 		close(fd);
 		return;
 		}
 
-	try {
-		sf_ring = new SF_Ring(fd, buffer_size, block_size, block_timeout_msec);
-	} catch (SF_RingException& e) {
-		Error(errno ? strerror(errno) : "unable to create RX-ring");
+	if ( ! ConfigureHWTimestamping(enable_hw_timestamping) )
+		{
+		Error(errno ? strerror(errno) : "failed to configure hardware timestamping");
 		close(fd);
 		return;
-	}
-
+		}
+		
 	stats = {};
 
+	props.netmask = NETMASK_UNKNOWN;
+	props.is_live = true;
+	props.link_type = link_type;
+
+	stats.received = stats.dropped = stats.link = stats.bytes_received = 0;
+	num_discarded = 0;
+
+	
 	Opened(props);
 }
+
+inline bool SFSource::ConfigureHWTimestamping(bool enabled)
+	{
+	if ( enabled )
+		{
+		struct ifreq ifr;
+		struct hwtstamp_config hwts_cfg;
+		int ret, opt;
+
+		memset(&hwts_cfg, 0, sizeof(hwts_cfg));
+		hwts_cfg.tx_type = HWTSTAMP_TX_OFF;
+		hwts_cfg.rx_filter = HWTSTAMP_FILTER_ALL;
+		memset(&ifr, 0, sizeof(ifr));
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", props.path.c_str());
+		ifr.ifr_data = (char *)&hwts_cfg;
+
+		ret = ioctl(fd, SIOCSHWTSTAMP, &ifr);
+		if ( ret < 0 )
+			return false;
+
+		opt = SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE;
+		ret = setsockopt(fd, SOL_PACKET, PACKET_TIMESTAMP,
+			&opt, sizeof(opt));
+		if( ret < 0 )
+			return false;
+		}
+	return true;
+	}
 
 void SFSource::Close()
 {
@@ -1041,7 +1121,7 @@ void SFSource::Statistics(Stats *s)
 	stats.link = stats.received + stats.dropped;
 
 	s = stats;*/	
-	// memcpy(s, &stats, sizeof(Stats));
+	memcpy(s, &stats, sizeof(Stats));
 }
 
 zeek::iosource::PktSrc *SFSource::InstantiateSF(const std::string &path, bool is_live)

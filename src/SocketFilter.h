@@ -14,6 +14,9 @@ extern "C"
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
+#include <linux/net_tstamp.h>
+#include <linux/sockios.h>
+#include <linux/net_tstamp.h>
 #include <bpf/bpf.h>
 }
 
@@ -48,7 +51,8 @@ namespace iosource
 
 			bool BindInterface();
 			bool EnablePromiscMode();
-			bool ConfigureFanoutGroup();
+			bool ConfigureFanoutGroup(bool enabled, bool defrag);
+			uint32_t GetFanoutMode(bool defrag);
 			Properties props;
 			Stats stats;
 
@@ -61,6 +65,11 @@ namespace iosource
 			int fd;
 			struct pcap_pkthdr current_hdr;
 			int checksum_mode;
+
+
+			int current_filter;
+			unsigned int num_discarded;
+			bool ConfigureHWTimestamping(bool enabled);
 
 		};
 
