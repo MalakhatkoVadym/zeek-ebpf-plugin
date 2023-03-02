@@ -12,6 +12,19 @@ This plugin provides native AF_XDP support for Zeek.
 
 ## Quick start
 
+# Insatll libs:
+
+Install kernel headers:
+`sudo dnf install "kernel-devel-uname-r == $(uname -r)"`
+
+Install libbpf-devel:
+
+`sudo dnf install libbpf-devel`
+
+For RHEL 8.5:
+`sudo dnf install https://centos.pkgs.org/8-stream/centos-powertools-x86_64/libbpf-devel-0.5.0-1.el8.x86_64.rpm.html`
+
+
 Compile the plugin.
 
 ``
@@ -38,3 +51,4 @@ filter.o should be in the same directory from where zeek is started.
 Install libbpf to compile plugin properly.
 Install gcc-multilib in case of error:
 `'asm/types.h' file not found`
+
