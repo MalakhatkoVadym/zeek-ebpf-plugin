@@ -77,6 +77,6 @@ int bpf_prog1(struct __sk_buff *skb)
     //         return SK_DROP;
     //     }
     // }
-    // return skb->len;
+    return skb->len;
 }
 char _license[] SEC("license") = "GPL";
