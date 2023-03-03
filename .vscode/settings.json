@@ -9,6 +9,15 @@
         "stdlib.h": "c",
         "*.tcc": "cpp",
         "bitset": "cpp",
-        "array": "c"
-    }
+        "array": "c",
+        "udp.h": "c",
+        "tcp.h": "c",
+        "ip.h": "c",
+        "little_endian.h": "c",
+        "numeric": "c",
+        "bpf_helpers.h": "c",
+        "compare": "c",
+        "in.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
