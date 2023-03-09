@@ -44,7 +44,7 @@ zeek -i sf::eth0
 clang -target bpf -O2 -c src/filter.c -o filter.o
 ```
 
-filter.o should be in the same directory from where zeek is started.
+filter.o should be in the same directory from where youre running zeek.
 
 ## Troubleshouting:
 
@@ -52,3 +52,6 @@ Install libbpf to compile plugin properly.
 Install gcc-multilib in case of error:
 `'asm/types.h' file not found`
 
+
+This patch should be applied to bpf.h for builing plugin on latest kernel versions:
+https://github.com/libbpf/libbpf/blob/v1.1.0/src/bpf.h#L412-L420
