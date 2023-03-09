@@ -1,0 +1,71 @@
+FROM centos:centos8
+
+VOLUME /data
+VOLUME /build
+VOLUME /zeek
+
+RUN mkdir -p /build
+
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+
+WORKDIR /build
+
+# RUN subscription-manager repos --enable=ubi-8-codeready-builder
+# RUN yum update -y && yum install --enablerepo=ubi-8-codeready-builder -y cmake kernel-headers git gcc gcc-c++ libbpf kernel-headers openssl-devel flex bison
+
+RUN dnf clean all && rm -r /var/cache/dnf  && dnf upgrade -y && dnf update -y & echo hostname
+#RUN yum search --showduplicates zlib && false
+RUN dnf -y install dnf-plugins-core
+RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN dnf config-manager --set-enabled powertools
+
+RUN dnf -y install \
+    libxcrypt-devel \
+    glibc \
+    glibc-headers \
+    glibc-devel \
+    libgomp \
+    libgcc \
+    libpkgconf \
+    pkgconf-m4 \
+    pkgconf \
+    pkgconf-pkg-config \
+    libstdc++ \
+    cmake \
+    emacs-filesystem \
+    cmake-data \
+    cmake-filesystem \
+    cmake-rpm-macros \
+    libstdc++-devel \
+    libuv
+
+RUN dnf -y install dnf-plugins-core
+
+RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+
+# RUN dnf config-manager --set-enabled powertools
+
+# Suricata build deps
+RUN dnf -y install cargo gcc jansson-devel nss nss-devel rust libcap-ng-devel lz4-devel \
+    make pcre-devel python3-pyyaml zlib zlib-devel file-devel \
+    libmaxminddb-devel \
+    libnet-devel \
+    libnetfilter_queue-devel \
+    libpcap-devel \
+    libyaml-devel \
+    lua-devel
+
+# Zeek build deps
+RUN dnf -y install \
+    bison cmake flex gcc-c++ python36-devel swig openssl-devel
+
+# Common and RPM build deps
+RUN dnf -y install \
+    wget rpm-build rpmdevtools git which libtool libbpf-devel
+
+COPY build.sh /build.sh
+
+# TODO: not working fully yet
+# ENTRYPOINT /build.sh

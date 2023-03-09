@@ -1,0 +1,17 @@
+FROM ubuntu:focal
+
+VOLUME /data
+VOLUME /out
+VOLUME /zeek
+
+RUN mkdir -p /build
+
+WORKDIR /build
+
+RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y git bison flex gcc g++ cmake python3 openssl zlib1g-dev libpcap-dev libssl-dev python3-pip swig pkg-config
+RUN apt-get install -y linux-headers-5.4.0-89 libbpf-dev clang-10
+RUN pip3 install pysubnettree
+
+COPY build.sh /build.sh
+
+ENTRYPOINT /build.sh
