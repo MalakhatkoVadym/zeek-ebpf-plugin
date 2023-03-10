@@ -67,5 +67,4 @@ RUN dnf -y install \
 
 COPY build.sh /build.sh
 
-# TODO: not working fully yet
-# ENTRYPOINT /build.sh
+ENTRYPOINT /build.sh
